@@ -1,0 +1,563 @@
+{
+    "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#",
+    "contentVersion": "1.0.0.0",
+    "parameters": {
+        "workflows_GlobalWAFBlockIP_name": {
+            "defaultValue": "GlobalWAFBlockIP",
+            "type": "String"
+        }
+    },
+    "variables": {},
+    "resources": [
+        {
+            "type": "Microsoft.Logic/workflows",
+            "apiVersion": "2017-07-01",
+            "name": "[parameters('workflows_GlobalWAFBlockIP_name')]",
+            "location": "eastus",
+            "identity": {
+                "type": "SystemAssigned"
+            },
+            "properties": {
+                "state": "Enabled",
+                "definition": {
+                    "$schema": "https://schema.management.azure.com/providers/Microsoft.Logic/schemas/2016-06-01/workflowdefinition.json#",
+                    "contentVersion": "1.0.0.0",
+                    "parameters": {},
+                    "triggers": {
+                        "Recurrence": {
+                            "recurrence": {
+                                "frequency": "Month",
+                                "interval": 12
+                            },
+                            "evaluatedRecurrence": {
+                                "frequency": "Month",
+                                "interval": 12
+                            },
+                            "type": "Recurrence",
+                            "description": "This is just a temporary trigger which can be changed according to your liking later on"
+                        }
+                    },
+                    "actions": {
+                        "Custom_Rule_Priority": {
+                            "runAfter": {
+                                "REST_API_Version": [
+                                    "Succeeded"
+                                ]
+                            },
+                            "type": "InitializeVariable",
+                            "inputs": {
+                                "variables": [
+                                    {
+                                        "name": "Custom Rule Priority",
+                                        "type": "integer",
+                                        "value": 100
+                                    }
+                                ]
+                            },
+                            "description": "Enter the priority of your custom rule as specified in the WAF. It is the numerical ID assigned to the custom rule during its creation."
+                        },
+                        "Front_Door_WAF_Name": {
+                            "runAfter": {
+                                "Resource_Group": [
+                                    "Succeeded"
+                                ]
+                            },
+                            "type": "InitializeVariable",
+                            "inputs": {
+                                "variables": [
+                                    {
+                                        "name": "Front Door WAF Name",
+                                        "type": "string",
+                                        "value": "ENTER YOUR WAF NAME HERE"
+                                    }
+                                ]
+                            },
+                            "description": "In the Textbox next to the Value label, enter the name of your FrontDoor WAF."
+                        },
+                        "IP_Address": {
+                            "runAfter": {
+                                "Custom_Rule_Priority": [
+                                    "Succeeded"
+                                ]
+                            },
+                            "type": "InitializeVariable",
+                            "inputs": {
+                                "variables": [
+                                    {
+                                        "name": "IP Address",
+                                        "type": "string",
+                                        "value": "ENTER IP ADDRESS TO ADD HERE"
+                                    }
+                                ]
+                            },
+                            "description": "Enter the IP address you would like to add to the custom rule list."
+                        },
+                        "Insights_on_the_Logic_App_(READ_ME)": {
+                            "runAfter": {},
+                            "type": "Compose",
+                            "inputs": "Please delete this element once you have met the requirements of this logic app because it is an unnecessary action that is only there to assist you with some insights before you begin. \n\nPlease read all of the information provided in every action to help you understand how this logic app works, after which you can understand how to modify it on your own.\n\nIf you deployed this logic app as a custom template, please keep in mind that it has a managed identity. If you have deployed the code directly into an existing logic app, please ensure that system-assigned managed identity is enabled in the Identity blade on the left. \n\nOnce the managed identity has been assigned to the logic app, please grant the logic app the necessary permissions to modify the custom rules of your Front Door Web Application Firewall. This is possible in IAM under the WAF policy. You can assign a contributor role or even a custom role if you've created one for the logic app.\n\nOnce that is done, you're good to go. Enjoy!\n\n- Logic App created by Anfas K S\nhttps://github.com/cyberanfas/azure\nhttps://www.linkedin.com/in/anfasks/"
+                        },
+                        "REST_API_Version": {
+                            "runAfter": {
+                                "Front_Door_WAF_Name": [
+                                    "Succeeded"
+                                ]
+                            },
+                            "type": "InitializeVariable",
+                            "inputs": {
+                                "variables": [
+                                    {
+                                        "name": "REST API Version",
+                                        "type": "string",
+                                        "value": "2022-05-01"
+                                    }
+                                ]
+                            },
+                            "description": "The default REST API Version set here is the latest, as of September 24, 2023. You can change it if you have another version in mind."
+                        },
+                        "Resource_Group": {
+                            "runAfter": {
+                                "Subscription_ID": [
+                                    "Succeeded"
+                                ]
+                            },
+                            "type": "InitializeVariable",
+                            "inputs": {
+                                "variables": [
+                                    {
+                                        "name": "Resource Group",
+                                        "type": "string",
+                                        "value": "ENTER YOUR RESOURCE GROUP HERE"
+                                    }
+                                ]
+                            },
+                            "description": "In the Textbox next to the Value label, enter your Resource Group. The Resource Group should be the same as the one containing your FrontDoor WAF."
+                        },
+                        "Subscription_ID": {
+                            "runAfter": {
+                                "Insights_on_the_Logic_App_(READ_ME)": [
+                                    "Succeeded"
+                                ]
+                            },
+                            "type": "InitializeVariable",
+                            "inputs": {
+                                "variables": [
+                                    {
+                                        "name": "Subscription ID",
+                                        "type": "string",
+                                        "value": "ENTER YOUR SUBSCRIPTION ID HERE"
+                                    }
+                                ]
+                            },
+                            "description": "In the Textbox next to the Value label, enter your Subscription ID. The Subscription ID should be the same as the one containing your FrontDoor WAF."
+                        },
+                        "WAF_Block_IP_Scope": {
+                            "actions": {
+                                "Get_WAF_Policy_Template": {
+                                    "runAfter": {},
+                                    "type": "Http",
+                                    "inputs": {
+                                        "authentication": {
+                                            "audience": "https://management.azure.com/",
+                                            "type": "ManagedServiceIdentity"
+                                        },
+                                        "method": "GET",
+                                        "uri": "https://management.azure.com/subscriptions/@{variables('Subscription ID')}/resourceGroups/@{variables('Resource Group')}/providers/Microsoft.Network/FrontDoorWebApplicationFirewallPolicies/@{variables('Front Door WAF Name')}?api-version=@{variables('REST API Version')}"
+                                    },
+                                    "description": "This HTTP Get request collects the WAF Policy details of the specified resource."
+                                },
+                                "Loop_Through_Custom_Rules": {
+                                    "foreach": "@body('Parse_Custom_Rules')?['rules']",
+                                    "actions": {
+                                        "Match_Priority_Condition": {
+                                            "actions": {
+                                                "For_Each_MatchConditions": {
+                                                    "foreach": "@items('Loop_Through_Custom_Rules')['matchConditions']",
+                                                    "actions": {
+                                                        "Modify_WAF_Policy": {
+                                                            "runAfter": {},
+                                                            "type": "Http",
+                                                            "inputs": {
+                                                                "authentication": {
+                                                                    "audience": "https://management.azure.com/",
+                                                                    "type": "ManagedServiceIdentity"
+                                                                },
+                                                                "body": "@json(replace(string(body('Parse_WAF_Policy_Template')), string(body('Parse_WAF_Policy_Template')?['properties']?['customRules']), replace(string(body('Parse_Custom_Rules')), string(body('Parse_Custom_Rules')['rules']), replace(string(body('Parse_Custom_Rules')['rules']), string(items('Loop_Through_Custom_Rules')['matchConditions']), replace(string(items('Loop_Through_Custom_Rules')['matchConditions']), concat('\"matchValue\":',string(items('For_Each_MatchConditions')['matchValue'])), concat('\"matchValue\":', slice(string(items('For_Each_MatchConditions')['matchValue']), 0, -1), ',\"', variables('IP Address'), '/32\"]'))))))",
+                                                                "method": "PUT",
+                                                                "uri": "https://management.azure.com/subscriptions/@{variables('Subscription ID')}/resourceGroups/@{variables('Resource Group')}/providers/Microsoft.Network/FrontDoorWebApplicationFirewallPolicies/@{variables('Front Door WAF Name')}?api-version=@{variables('REST API Version')}"
+                                                            },
+                                                            "description": "This HTTP Put Request adds the IP address to the custom rule by modifying the previously retrieved WAF Policy, and modifying the template. Please make sure not to add a subnet, as /32 will be added after the IP by default, which can also be modified."
+                                                        }
+                                                    },
+                                                    "runAfter": {},
+                                                    "type": "Foreach",
+                                                    "description": "Although there's only one MatchConditions for each custom rules, this method works just as good."
+                                                }
+                                            },
+                                            "runAfter": {},
+                                            "expression": {
+                                                "and": [
+                                                    {
+                                                        "equals": [
+                                                            "@items('Loop_Through_Custom_Rules')?['priority']",
+                                                            "@variables('Custom Rule Priority')"
+                                                        ]
+                                                    }
+                                                ]
+                                            },
+                                            "type": "If",
+                                            "description": "This condition matches the priority retrieved from the WAF with the priority we specified."
+                                        }
+                                    },
+                                    "runAfter": {
+                                        "Parse_Custom_Rules": [
+                                            "Succeeded"
+                                        ]
+                                    },
+                                    "type": "Foreach",
+                                    "description": "This element iterates over all available custom rules until the condition below matches the priority specified in the variable above."
+                                },
+                                "Parse_Custom_Rules": {
+                                    "runAfter": {
+                                        "Parse_WAF_Policy_Template": [
+                                            "Succeeded"
+                                        ]
+                                    },
+                                    "type": "ParseJson",
+                                    "inputs": {
+                                        "content": "@body('Parse_WAF_Policy_Template')?['properties']?['customRules']",
+                                        "schema": {
+                                            "properties": {
+                                                "rules": {
+                                                    "items": {
+                                                        "properties": {
+                                                            "action": {
+                                                                "type": [
+                                                                    "string",
+                                                                    "null"
+                                                                ]
+                                                            },
+                                                            "enabledState": {
+                                                                "type": [
+                                                                    "string",
+                                                                    "null"
+                                                                ]
+                                                            },
+                                                            "matchConditions": {
+                                                                "items": {
+                                                                    "properties": {
+                                                                        "matchValue": {
+                                                                            "items": {
+                                                                                "type": [
+                                                                                    "string",
+                                                                                    "null"
+                                                                                ]
+                                                                            },
+                                                                            "type": "array"
+                                                                        },
+                                                                        "matchVariable": {
+                                                                            "type": [
+                                                                                "string",
+                                                                                "null"
+                                                                            ]
+                                                                        },
+                                                                        "negateCondition": {
+                                                                            "type": "boolean"
+                                                                        },
+                                                                        "operator": {
+                                                                            "type": [
+                                                                                "string",
+                                                                                "null"
+                                                                            ]
+                                                                        },
+                                                                        "selector": {},
+                                                                        "transforms": {
+                                                                            "type": "array"
+                                                                        }
+                                                                    },
+                                                                    "required": [
+                                                                        "matchVariable",
+                                                                        "selector",
+                                                                        "operator",
+                                                                        "negateCondition",
+                                                                        "matchValue",
+                                                                        "transforms"
+                                                                    ],
+                                                                    "type": "object"
+                                                                },
+                                                                "type": "array"
+                                                            },
+                                                            "name": {
+                                                                "type": [
+                                                                    "string",
+                                                                    "null"
+                                                                ]
+                                                            },
+                                                            "priority": {
+                                                                "type": "integer"
+                                                            },
+                                                            "rateLimitDurationInMinutes": {
+                                                                "type": "integer"
+                                                            },
+                                                            "rateLimitThreshold": {
+                                                                "type": "integer"
+                                                            },
+                                                            "ruleType": {
+                                                                "type": [
+                                                                    "string",
+                                                                    "null"
+                                                                ]
+                                                            }
+                                                        },
+                                                        "required": [
+                                                            "name",
+                                                            "enabledState",
+                                                            "priority",
+                                                            "ruleType",
+                                                            "rateLimitDurationInMinutes",
+                                                            "rateLimitThreshold",
+                                                            "matchConditions",
+                                                            "action"
+                                                        ],
+                                                        "type": "object"
+                                                    },
+                                                    "type": "array"
+                                                }
+                                            },
+                                            "type": "object"
+                                        }
+                                    },
+                                    "description": "This element parses the above parsed JSON to collect all the custom rules"
+                                },
+                                "Parse_WAF_Policy_Template": {
+                                    "runAfter": {
+                                        "Get_WAF_Policy_Template": [
+                                            "Succeeded"
+                                        ]
+                                    },
+                                    "type": "ParseJson",
+                                    "inputs": {
+                                        "content": "@body('Get_WAF_Policy_Template')",
+                                        "schema": {
+                                            "properties": {
+                                                "id": {
+                                                    "type": [
+                                                        "string",
+                                                        "null"
+                                                    ]
+                                                },
+                                                "location": {
+                                                    "type": [
+                                                        "string",
+                                                        "null"
+                                                    ]
+                                                },
+                                                "name": {
+                                                    "type": [
+                                                        "string",
+                                                        "null"
+                                                    ]
+                                                },
+                                                "properties": {
+                                                    "properties": {
+                                                        "customRules": {
+                                                            "properties": {
+                                                                "rules": {
+                                                                    "items": {
+                                                                        "properties": {
+                                                                            "action": {
+                                                                                "type": [
+                                                                                    "string",
+                                                                                    "null"
+                                                                                ]
+                                                                            },
+                                                                            "enabledState": {
+                                                                                "type": [
+                                                                                    "string",
+                                                                                    "null"
+                                                                                ]
+                                                                            },
+                                                                            "matchConditions": {
+                                                                                "items": {
+                                                                                    "properties": {
+                                                                                        "matchValue": {
+                                                                                            "items": {
+                                                                                                "type": [
+                                                                                                    "string",
+                                                                                                    "null"
+                                                                                                ]
+                                                                                            },
+                                                                                            "type": "array"
+                                                                                        },
+                                                                                        "matchVariable": {
+                                                                                            "type": [
+                                                                                                "string",
+                                                                                                "null"
+                                                                                            ]
+                                                                                        },
+                                                                                        "negateCondition": {
+                                                                                            "type": "boolean"
+                                                                                        },
+                                                                                        "operator": {
+                                                                                            "type": [
+                                                                                                "string",
+                                                                                                "null"
+                                                                                            ]
+                                                                                        },
+                                                                                        "selector": {},
+                                                                                        "transforms": {
+                                                                                            "type": "array"
+                                                                                        }
+                                                                                    },
+                                                                                    "required": [
+                                                                                        "matchVariable",
+                                                                                        "selector",
+                                                                                        "operator",
+                                                                                        "negateCondition",
+                                                                                        "matchValue",
+                                                                                        "transforms"
+                                                                                    ],
+                                                                                    "type": "object"
+                                                                                },
+                                                                                "type": "array"
+                                                                            },
+                                                                            "name": {
+                                                                                "type": [
+                                                                                    "string",
+                                                                                    "null"
+                                                                                ]
+                                                                            },
+                                                                            "priority": {
+                                                                                "type": "integer"
+                                                                            },
+                                                                            "rateLimitDurationInMinutes": {
+                                                                                "type": "integer"
+                                                                            },
+                                                                            "rateLimitThreshold": {
+                                                                                "type": "integer"
+                                                                            },
+                                                                            "ruleType": {
+                                                                                "type": [
+                                                                                    "string",
+                                                                                    "null"
+                                                                                ]
+                                                                            }
+                                                                        },
+                                                                        "required": [
+                                                                            "name",
+                                                                            "enabledState",
+                                                                            "priority",
+                                                                            "ruleType",
+                                                                            "rateLimitDurationInMinutes",
+                                                                            "rateLimitThreshold",
+                                                                            "matchConditions",
+                                                                            "action"
+                                                                        ],
+                                                                        "type": "object"
+                                                                    },
+                                                                    "type": "array"
+                                                                }
+                                                            },
+                                                            "type": "object"
+                                                        },
+                                                        "frontendEndpointLinks": {
+                                                            "type": "array"
+                                                        },
+                                                        "managedRules": {
+                                                            "properties": {
+                                                                "managedRuleSets": {
+                                                                    "type": "array"
+                                                                }
+                                                            },
+                                                            "type": "object"
+                                                        },
+                                                        "policySettings": {
+                                                            "properties": {
+                                                                "customBlockResponseBody": {},
+                                                                "customBlockResponseStatusCode": {
+                                                                    "type": "integer"
+                                                                },
+                                                                "enabledState": {
+                                                                    "type": [
+                                                                        "string",
+                                                                        "null"
+                                                                    ]
+                                                                },
+                                                                "mode": {
+                                                                    "type": [
+                                                                        "string",
+                                                                        "null"
+                                                                    ]
+                                                                },
+                                                                "redirectUrl": {},
+                                                                "requestBodyCheck": {
+                                                                    "type": [
+                                                                        "string",
+                                                                        "null"
+                                                                    ]
+                                                                }
+                                                            },
+                                                            "type": "object"
+                                                        },
+                                                        "provisioningState": {
+                                                            "type": [
+                                                                "string",
+                                                                "null"
+                                                            ]
+                                                        },
+                                                        "resourceState": {
+                                                            "type": [
+                                                                "string",
+                                                                "null"
+                                                            ]
+                                                        },
+                                                        "securityPolicyLinks": {
+                                                            "type": "array"
+                                                        }
+                                                    },
+                                                    "type": "object"
+                                                },
+                                                "sku": {
+                                                    "properties": {
+                                                        "name": {
+                                                            "type": [
+                                                                "string",
+                                                                "null"
+                                                            ]
+                                                        }
+                                                    },
+                                                    "type": "object"
+                                                },
+                                                "tags": {
+                                                    "properties": {},
+                                                    "type": "object"
+                                                },
+                                                "type": {
+                                                    "type": [
+                                                        "string",
+                                                        "null"
+                                                    ]
+                                                }
+                                            },
+                                            "type": "object"
+                                        }
+                                    },
+                                    "description": "This element will parse the WAF Policy HTTP Request"
+                                }
+                            },
+                            "runAfter": {
+                                "IP_Address": [
+                                    "Succeeded"
+                                ]
+                            },
+                            "type": "Scope",
+                            "description": "This scope contains all the elements required to successfully add an IP address to a custom rule that denies traffic through the WAF"
+                        }
+                    },
+                    "outputs": {}
+                },
+                "parameters": {}
+            }
+        }
+    ]
+}
